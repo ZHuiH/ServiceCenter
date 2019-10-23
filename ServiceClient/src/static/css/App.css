@@ -1,0 +1,15 @@
+*{
+  padding: 0px;
+  margin:0px;
+  font-family: sans-serif;
+  background: none;
+}
+
+/* 滚动条样式 */
+*::-webkit-scrollbar{
+  width: 6px;
+}
+*::-webkit-scrollbar-thumb{
+  border-radius: 6px;
+  background: #ccc;
+}

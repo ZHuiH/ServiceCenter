@@ -1,0 +1,95 @@
+.dialogue{
+    color:#333;
+    padding: 10px;
+    height: 100%;
+    width: 100%;
+    text-align: center;
+}
+.dialogue-user-message{
+    text-align: left;
+    width: 96%;
+}
+.dialogue-name{
+    color: #868686;
+}
+.dialogue-user-content-box{
+    max-width: 96%;
+    margin: auto;
+    border-left: 6px solid #fff;
+    border-radius: 3px;
+    padding: 6px 0px;
+    position:relative;
+}
+.dialogue-content{
+    background: #ffffff;
+    padding:  6px;
+    position:relative;
+    border-radius: 3px;
+    max-width: 96%;
+    display: inline-block;
+    margin: auto;
+    word-break: break-word;
+}
+.dialogue-user-hangings::before{
+    position: absolute;
+    content: "";
+    top: 0px;
+    left: -5px;
+    width: 0px;
+    height: 0px;
+    border-style: solid;
+    border-width: 10px;
+    border-color: transparent transparent #fff transparent;
+    transform: rotateZ(64deg);
+}
+
+.dialogue-self-message{
+    text-align: right;
+    margin-left: 4%;
+    width: 96%;
+}
+
+.dialogue-self-hangings::before{
+    position: absolute;
+    content: "";
+    top: 0px;
+    right: -3px;
+    width: 0px;
+    height: 0px;
+    border-style: solid;
+    border-width: 10px;
+    border-color: transparent transparent #fff transparent;
+    transform: rotateZ(-62deg);
+}
+
+.dialogue-goods{
+    width: 260px;
+}
+.dialogue-goods-picture{
+    width: 80px;
+    height:80px;
+    margin: auto;
+}
+.dialogue-goods-info{
+    text-align: left;
+    cursor: pointer;
+    padding-left:12px;
+}
+.dialogue-goods-name{
+    color: #333;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+    padding: 0px;
+    margin: 0px;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    max-height: 40px;
+    display: -webkit-box;
+}
+.dialogue-goods-tips{
+    border-bottom: 1px solid #ccc;
+    text-align: center;
+    margin: 0px 0px 5px 0px;
+    color:#2196f3;
+}

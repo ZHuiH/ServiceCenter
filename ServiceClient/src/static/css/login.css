@@ -1,0 +1,36 @@
+.login{
+    width:100%;
+    margin:auto;
+    text-align: center;
+}
+
+.login-main{
+    margin:45px auto 0px auto;
+    width:420px;
+    border-radius: 3px;
+    padding: 32px;
+    box-shadow: 1px 0px 5px 2px #c7c7c7;
+}
+.login-logo{
+    width:35%;
+    margin:auto;
+}
+.login-logo img{
+    width:100%;
+}
+.login-info{
+    margin-top:25px;
+}
+.login-input{
+    margin-bottom: 15px;
+}
+.login-btn{
+    width:80%;
+    margin: auto;
+}
+.login-alert{
+    position: fixed;
+    right: 0%;
+    top:20px;
+    width:260px;
+}

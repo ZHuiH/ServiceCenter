@@ -1,0 +1,45 @@
+.home{
+  color:#fff;
+  width: 800px;
+  height: 662px;
+  margin: auto;
+  border:1px solid #ccc;
+  border-radius: 3px;
+  top:10px;
+  position: relative;
+  overflow: hidden;
+}
+.home-header{
+  background: #fdfdfd!important;
+  border-bottom: 1px solid #ccc;
+}
+.home-user-list{
+  background: #fbfbfb!important;
+  height:660px;
+  overflow-y: scroll;
+  border-right: 1px solid #ccc;
+}
+.touchCustomer:hover{
+  background: #f0f0f0;
+}
+.home-user-list-search{
+  width:100%;
+  padding: 10px 5%;
+  background: #fff;
+  border-bottom: 1px solid #ccc;
+  position: relative;
+  top:0%;
+  left:0%;
+}
+
+.home-user-message{
+  height: 420px;
+  overflow-y: auto;
+}
+.home-edit{
+  border-top: 1px solid #ccc;
+  background: #fff;
+  padding: 0px 5%!important;
+  height: 176px;
+  background: #fff!important;
+}

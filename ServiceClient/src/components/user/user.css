@@ -1,0 +1,28 @@
+.component-user{
+    width:180px;
+    height:60px;
+    padding: 0px 10px;
+    line-height: 60px;
+    cursor: pointer;
+    overflow: hidden;
+}
+.component-user-info{
+    line-height: 20px;
+    height: 46px;
+    margin-top: 14px;
+}
+.component-user-info-name{
+    font-size: 15px;
+    color:#191919
+}
+.component-user-view-msg{
+    font-size: 14px;
+    color:#464646
+}
+.component-user-hover:hover{
+    background: #e4e4e4;
+}
+.component-user-list{
+    height: 590px;
+    overflow-y: scroll;
+}   
