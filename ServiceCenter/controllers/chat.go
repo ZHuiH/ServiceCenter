@@ -33,20 +33,24 @@ func Chat(ctx *http.RequestCtx){
 //处理客户连接信息
 func handlerUser(conn *ws.Conn){
 	defer conn.Close();
+	
 	user:=make(chan *conf.Client, 1);
-	//createTime:=time.Now().Unix();
+	//预留10个位置超过就要等
+
 	//接收用户的信息 并返回相应的操作
 	go handlerUserMessage(conn,user);
+	
 	//接收协程发过来的的信息
-	temp:=<-user;
+	target:=<-user;
 
+	//处理用户发出的信息
+	go handlerUserWrite(target);
 	for{
-
-		check:=headlerHeartbeat(conf.Config.Heartbeat ,&temp.Info ,conn);
-
+		check:=headlerHeartbeat(conf.Config.Heartbeat ,&target.Info ,conn);
+		
 		if !check{
 			//把信息推送出去
-			temp.PushMessage();
+			target.PushMessage();
 			return;
 		}
 	}
@@ -56,76 +60,131 @@ func handlerUser(conn *ws.Conn){
 func handlerUserMessage(conn *ws.Conn,userAgent chan *conf.Client){
 	user:=conf.Client{};
 
+	//计算短期之间是否多次频繁发送 如果超过50次就把他踢掉
+	var count int = 0;
+	var responseTime int64=time.Now().Unix();
 	//给主协程发送注册的信号
 	userAgent<-&user;
 	for{
-		index, content, err := conn.ReadMessage()
+		
+		_, content, err := conn.ReadMessage()
 		if err != nil {
 			fmt.Println(err)
 			return;
 		}
-		//最基本的处理 
-		//将内容进行json解码 并且进行信息的类型归类
+		//检测是不是ddos攻击
+		verify:=PreventDdos(&count,&responseTime);
+		//确认是ddos 直接返回 并且设置活跃时间 直接关闭
+		if !verify{
+			user.Info.ActiveTime=0;
+			continue;
+		}
 		result:=Parse(content);
-
-		//返回信息
-		msg:=common.ReturnFormat("error","login","验证失败，token不存在");
 		//登录是单独的
-		if result["type"]=="login"{
-			sign:=make(map[string]string);
-			
-			//用户登录
-			if len(result["token"]) > 0{
-				sign=login(result["token"],conf.Config.VerifyUrl);
-			//游客登录
-			}else if len(conf.Config.VerifyUrl) <= 0{
-				sign=guestsLogin();
+		if result["type"]==conf.LOGIN{
+			UserLogin(conn,&user,result["token"]);
+		}else{
+
+			//一接到信息就开协程
+			go func(){
+				if user.Info.Token=="" && user.Info.Connect !=nil {
+					return;
+				}
+			//最基本的处理 
+			//将内容进行json解码 并且进行信息的类型归类
+				var msg map[string]string;
+				switch  result["type"] {
+					case	"msg"	: 	msg=broadcastToServe(&user,result);break;
+					default	: 	msg=common.ReturnFormat("fail",conf.TIPS,"格式错误");
+				}
+	
+				if  user.Serve !=nil && user.Serve.Info.Token !=""{
+					msg["sendTo"]=user.Serve.Info.Token;
+				}
+
+				user.Info.Received<-msg;
+			}();
+
+		}
+	}
+}
+
+func UserLogin(conn *ws.Conn,user *conf.Client,token string){
+	sign:=make(map[string]string);
+	msg:=common.ReturnFormat("fail",conf.LOGIN,"验证失败，token不存在");			
+	//用户登录
+	if len(token) > 0{
+		sign=login(token,conf.Config.VerifyUrl);
+	//游客登录
+	}else if len(conf.Config.VerifyUrl) <= 0{
+		sign=guestsLogin();
+	}
+
+	if len(sign) > 0{
+		//创建用户数据
+		*user=buildUserData(sign);
+
+		message:=new([]conf.Message);
+		//补充
+		user.History=message;
+
+		//尝试去插入到用户列表
+		msg=appendUser(user);
+		
+		if msg["status"]=="success"{
+			//绑定客服
+			user.Serve=conf.ServiceList.MinConnect();
+
+			if user.Serve==nil || user.Serve.Info.Connect==nil{
+				if conf.ServiceList.Head !=nil{
+					msg=common.ReturnFormat("success",conf.TIPS,"客服繁忙，请耐心等待");
+				}else{
+					msg=common.ReturnFormat("success",conf.TIPS,"当前并未有客服在线！");
+				}
+			}else{
+				user.Serve.ConnectNumber++;
+				//分配客服成功了 通知给全部客服
+				userInfo:=map[string]string{
+					"avatar":user.Info.Avatar,
+					"nickName":user.Info.NickName,
+				}
+				loginTips:=map[string]string{
+					"data":string(common.JsonEncode(userInfo)),
+					"type":"access",
+					"status":"success",
+					"content":"用户登录",
+				}
+				broadcastToServe(user,loginTips);
 			}
 
-			if len(sign) > 0{
-				//创建用户数据
-				user=buildUserData(sign);
+			jsonStr:=common.JsonEncode(sign);
+			msg["data"]=string(jsonStr);
+		}else{
+			*user=conf.Client{};
+			msg=common.ReturnFormat("fail",conf.LOGIN,"登录失败");
+		}
+	}
+	user.Info.Connect=conn;
+	user.Info.Received<-msg;
+}
 
-				message:=new([]conf.Message);
-				//补充
-				user.History=message;
-				user.Info.Connect=conn;
-				
-				//尝试去插入到用户列表
-				msg=appendUser(&user);
-				
-				if msg["status"]=="success"{
-					//绑定客服
-					user.Serve=conf.ServiceList.MinConnect();
-					if user.Serve==nil{
-						if conf.ServiceList.Head !=nil{
-							msg=common.ReturnFormat("success","tips","客服繁忙，请耐心等待");
-						}else{
-							msg=common.ReturnFormat("success","tips","当前并未有客服在线！");
-						}
-						
-					}
+//由此控制写入
+func handlerUserWrite(user *conf.Client){
+	for{
+		//为防止同一个conn 同时写入 设定为单线程
+		info:=user.Info;
 
-					jsonStr:=common.JsonEncode(sign);
-					msg["data"]=string(jsonStr);
-				}else{
-					user=conf.Client{};
-					msg=common.ReturnFormat("error","login","登录失败");
+		if info.Connect !=nil{
+
+			msg:=<-info.Received;
+			if len(msg) > 0{
+				//转换格式
+				contents:=toMessage(&info,msg);
+				err:=info.Connect.WriteJSON(contents);
+				if err !=nil{
+					user.Info.Close=true;
 				}
 			}
-		}
-
-		switch  result["type"] {
-			case	"login"	: 	break;
-			case	"msg"	: 	msg=broadcastToServe(&user,result);break;
-			default	: msg=common.ReturnFormat("error","tips","格式错误");
-		}
-
-		json:=common.JsonEncode(msg);
-
-		if err := conn.WriteMessage(index, json); err != nil {
-			fmt.Println(err);
-			return;
 		}
 	}
 }
@@ -149,7 +208,7 @@ func guestsLogin()(info map[string]string){
 //添加用户
 func appendUser(user *conf.Client)(msg map[string]string){
 	head:=conf.UserList.Head;
-	msg=common.ReturnFormat("success","login","登录成功");
+	msg=common.ReturnFormat("success",conf.LOGIN,"登录成功");
 
 	//首个 列表的开头
 	if head == nil{
@@ -178,8 +237,8 @@ func appendUser(user *conf.Client)(msg map[string]string){
 			conf.UserList.Total++;
 		}else{
 			//登录过了
-			msg["status"]="error";
-			msg["msg"]="该账号已登录";
+			msg["status"]="fail";
+			msg[conf.MSG]="该账号已登录";
 		}
 	}
 
@@ -198,10 +257,11 @@ func buildUserData(data map[string]string)(user conf.Client){
 		CreateTime		:	timestamp,
 		ActiveTime		:	timestamp,
 		Id				:	data["id"],
-		NickName		:	data["nick_name"],
+		NickName		:	data["nickName"],
 		Token			:	data["token"],
 		Close			:	false,
-		ProfilePicture	:	"https://ss0.bdstatic.com/70cFuHSh_Q1YnxGkpoWK1HF6hhy/it/u=806928800,2548687982&fm=26&gp=0.jpg",
+		Received		:	make(chan map[string]string,10),
+		Avatar			:	data["avatar"],
 	};
 	return;
 }
@@ -210,32 +270,40 @@ func buildUserData(data map[string]string)(user conf.Client){
 //广播到客服
 func broadcastToServe(user *conf.Client,data map[string]string)(msg map[string]string){
 
-	if user.Serve == nil{
-		msg=common.ReturnFormat("error","tips","发送失败,当前并未有客服");
+	if user.Serve == nil || user.Serve.Info.Connect==nil{
+		msg=common.ReturnFormat("fail",conf.TIPS,"发送失败,当前并未有客服");
 		return;
 	}else{
-		msg=common.ReturnFormat("error","msg","发送失败");
+		msg=common.ReturnFormat("fail",conf.MSG,"发送失败");
 	}
+
 	
 	//生成Message结构体的数据
-	content:=toMessage(&user.Info,data,true);
+	data["sentTo"]=user.Serve.Info.Token;
+	content:=toMessage(&user.Info,data);
+
 	if len(content.Content) <= 0{
 		return;
 	}
+
+	history:=conf.Message{
+		CreateTime	:content.CreateTime,
+		Content		:content.Content,
+		Source		:true,
+	}
 	//插入会话队列
-	*user.History=append(*user.History,content);
+	*user.History=append(*user.History,history);
 	//更新活跃时间 防止被标识为关闭
 	user.Info.ActiveTime=time.Now().Unix();
-	
 	//是时候推送信息了
 	if conf.Config.ServeUnion{
 		//开启联合服务模式
 		conf.ServiceList.ForEach(func(item *conf.Serve){
-			item.Info.Connect.WriteJSON(content);
+			item.Info.Received<-data;
 		})
 	}else{
-		user.Serve.Info.Connect.WriteJSON(content);
+		user.Serve.Info.Received<-data;
 	}
-	msg=common.ReturnFormat("success","msg","发送成功");
+	msg=common.ReturnFormat("success",conf.TIPS,"发送成功");
 	return;
 }

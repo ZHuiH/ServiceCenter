@@ -23,6 +23,7 @@ func BindFlag(){
 	flag.StringVar(&Config.VerifyUrl,"verify_url","","验证登录的地址");
 	flag.StringVar(&Config.ServeVerify,"serve_verify","","客服登录验证的地址");
 	flag.StringVar(&Config.GuestsName,"guests_name","游客","游客的昵称");
+	flag.StringVar(&Config.UploadPath,"upload_path","/upload/","保存上传文件的目录");
 	flag.IntVar(&Config.Heartbeat,"heartbeat",30,"心跳的时间");
 	flag.BoolVar(&Config.ServeUnion,"serve_union",true,"开启联合服务模式");
 	flag.IntVar(&Config.ServeConcurrent,"serve_concurrent",10,"客服最大连接数量");
@@ -64,6 +65,7 @@ func PrintEnv(){
 	fmt.Println("心跳时间:",Config.Heartbeat);
 	fmt.Println("联合服务模式:",Config.ServeUnion);
 	fmt.Println("客服最大连接数:",Config.ServeConcurrent);
+	fmt.Println("保存上传文件的目录:",Config.UploadPath);
 	
 }
 
@@ -86,6 +88,7 @@ func ReadConf(){
 				case "verify_url"		: Config.VerifyUrl=value;break;
 				case "guests_name"		: Config.GuestsName=value;break;
 				case "serve_verify"		: Config.ServeVerify=value;break;
+				case "upload_path"		: Config.UploadPath=value;break;
 				case "heartbeat"		: Config.Heartbeat,_=strconv.Atoi(value);break;
 				case "serve_concurrent"	: Config.ServeConcurrent,_=strconv.Atoi(value);break;
 				case "serve_union"		: Config.ServeUnion,_=strconv.ParseBool(value);break;

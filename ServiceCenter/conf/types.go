@@ -28,6 +28,7 @@ type Configure struct{
 	Heartbeat		int		//心跳
 	ServeUnion		bool	//是否开启联合服务模式 开启之后任何客服都能看到所有客户的发言 但是其他人回复依然是绑定的客服的名下
 	ServeConcurrent int		//单个客服的并发数量;
+	UploadPath		string	//保存上传的文件目录
 }
 
 //通用的信息
@@ -37,7 +38,8 @@ type UserInfo struct{
 	Id 				string		"用户的id"
 	NickName		string		"用户的昵称"
 	Connect			*ws.Conn	"连接的标识符"
-	ProfilePicture	string		"头像"
+	Received		chan map[string]string "每个都用都有单独接收信息队列"
+	Avatar			string		"头像"
 	Close			bool		"是否已关闭连接并推送"
 	Token			string		"验证使用的token 尽量所有验证都是用token 每次登录随机生成"
 }
@@ -50,6 +52,18 @@ type Message struct{
 	Source		bool	//通过这个来判断是不是客服发送的 true就是客服发起的
 	//Customer	*Client
 	//Service		*Serve
+}
+
+//发送信息的格式 以后都是统一这个格式
+type SendFormat struct{	
+	Content		string	//内容
+	Source		bool	//是否客户端发送来的
+	CreateTime	int64	//转发的时间（来到服务器转发）
+	Type		string	//信息的格式类型
+	From		string	//发送人
+	To			string	//接收人
+	Data		string	//平常是空的 json 附加的数据
+	Status		string	//本次操作的状态
 }
 
 //客户的信息
@@ -93,6 +107,15 @@ type  ChatHistory struct{
 	Content		[]Message
 }
 
+//通信类型
+const (
+	MSG="msg";
+	TIPS="tips";
+	LOGIN="login";
+	SENT="sent";
+	PING="ping";
+);
+
 /*
 *
 	下面开始声明这些结构体
@@ -119,4 +142,5 @@ var Config *Configure=new(Configure);
 
 //游客数量
 var GuestsTotal int;
+
 

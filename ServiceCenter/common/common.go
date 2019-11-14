@@ -2,6 +2,8 @@ package common
 import(
 	"encoding/json"
 	"math/rand"
+	"time"
+	"os"
 )
 
 
@@ -50,11 +52,29 @@ func ReturnFormat(data ...string)(msg map[string]string){
 	}
 	msg["status"]=data[0];
 	msg["type"]=data[1];
-	msg["msg"]=data[2];
+	msg["content"]=data[2];
 	
 	if len(data) > 3{
 		msg["data"]=data[3];
 	}
 	
 	return;
+}
+
+//获取当前时间的年月日
+func CurrentTime() string {
+	now:=time.Now();
+	result:=now.Format("20060102");
+	return string(result);
+}
+
+//检测是否存在 如果不存在就创建
+func PathExist(path string) bool {
+	if _,err:= os.Stat(path); err != nil {
+		err:=os.MkdirAll(path,os.ModePerm);
+		if err!=nil{
+			return false;
+		}
+	}
+	return true;
 }
